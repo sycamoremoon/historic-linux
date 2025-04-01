@@ -1,7 +1,7 @@
 #ifndef _CONST_H
 #define _CONST_H
 
-#define BUFFER_END 0x200000
+#define BUFFER_END 0x200000	/* 2MB */
 
 #define I_TYPE          0170000
 #define I_DIRECTORY	0040000

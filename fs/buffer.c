@@ -19,8 +19,8 @@
 #error "Bad BUFFER_END value"
 #endif
 
-extern int end;
-struct buffer_head * start_buffer = (struct buffer_head *) &end;
+extern char end[]; /* symbol which is defined in link script */
+struct buffer_head * start_buffer = (struct buffer_head *) end;
 struct buffer_head * hash_table[NR_HASH];
 static struct buffer_head * free_list;
 static struct task_struct * buffer_wait = NULL;
@@ -28,7 +28,7 @@ int NR_BUFFERS = 0;
 
 static inline void wait_on_buffer(struct buffer_head * bh)
 {
-	cli();
+	cli(); /* simply disable interrupts which can be improve */
 	while (bh->b_lock)
 		sleep_on(&bh->b_wait);
 	sti();
@@ -55,6 +55,7 @@ static int sync_dev(int dev)
 	struct buffer_head * bh;
 
 	bh = start_buffer;
+	/* sync all buffers? why not just sync one target buffer? */
 	for (i=0 ; i<NR_BUFFERS ; i++,bh++) {
 		if (bh->b_dev != dev)
 			continue;
@@ -96,8 +97,8 @@ static inline void insert_into_queues(struct buffer_head * bh)
 /* put the buffer in new hash-queue if it has a device */
 	bh->b_prev = NULL;
 	bh->b_next = NULL;
-	if (!bh->b_dev)
-		return;
+	if (!bh->b_dev) /* for lose boys who don't */
+		return;	/* know where to go back queue */
 	bh->b_next = hash(bh->b_dev,bh->b_blocknr);
 	hash(bh->b_dev,bh->b_blocknr) = bh;
 	bh->b_next->b_prev = bh;
@@ -147,7 +148,7 @@ struct buffer_head * getblk(int dev,int block)
 
 repeat:
 	if (tmp=get_hash_table(dev,block))
-		return tmp;
+		return tmp; /* free block eventually found in hash queue */
 	tmp = free_list;
 	do {
 		if (!tmp->b_count) {
@@ -168,8 +169,8 @@ repeat:
 	remove_from_queues(tmp);
 /*
  * Now, when we know nobody can get to this node (as it's removed from the
- * free list), we write it out. We can sleep here without fear of race-
- * conditions.
+ * free list), we write it out.
+ * We can sleep here WITHOUT FEAR OF RACE-CONDITIONS.
  */
 	if (tmp->b_dirt)
 		sync_dev(tmp->b_dev);
@@ -179,7 +180,8 @@ repeat:
 	tmp->b_dirt=0;
 	tmp->b_uptodate=0;
 /* NOTE!! While we possibly slept in sync_dev(), somebody else might have
- * added "this" block already, so check for that. Thank God for goto's.
+ * added "this" block already, we dont know where to insert since the origin
+ * place was already be taken, so check for that. Thank God for goto's.
  */
 	if (find_buffer(dev,block)) {
 		tmp->b_dev=0;		/* ok, someone else has beaten us */
@@ -228,6 +230,10 @@ void buffer_init(void)
 	void * b = (void *) BUFFER_END;
 	int i;
 
+	/*
+	 * Between `start_bffer and BUFFER_END`, the `buffer_head` and
+	 * the actual `buffer block` are co-exist dynamically.
+	 */
 	while ( (b -= BLOCK_SIZE) >= ((void *) (h+1)) ) {
 		h->b_dev = 0;
 		h->b_dirt = 0;
@@ -242,6 +248,7 @@ void buffer_init(void)
 		h->b_next_free = h+1;
 		h++;
 		NR_BUFFERS++;
+		/* 384 KiB System / Reserved ("Upper Memory") */
 		if (b == (void *) 0x100000)
 			b = (void *) 0xA0000;
 	}
