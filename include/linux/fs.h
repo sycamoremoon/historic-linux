@@ -57,7 +57,7 @@ struct buffer_head {
 	char * b_data;			/* pointer to data block (1024 bytes) */
 	unsigned short b_dev;		/* device (0 = free) */
 	unsigned short b_blocknr;	/* block number */
-	unsigned char b_uptodate;
+	unsigned char b_uptodate;	/* TODO: what is this mean? */
 	unsigned char b_dirt;		/* 0-clean,1-dirty */
 	unsigned char b_count;		/* users using this block */
 	unsigned char b_lock;		/* 0 - ok, 1 -locked */

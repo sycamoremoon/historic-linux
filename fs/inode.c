@@ -55,7 +55,7 @@ static int _bmap(struct m_inode * inode,int block,int create)
 		panic("_bmap: block<0");
 	if (block >= 7+512+512*512)
 		panic("_bmap: block>big");
-	if (block<7) {
+	if (block<7) { /* direct blocks */
 		if (create && !inode->i_zone[block])
 			if (inode->i_zone[block]=new_block(inode->i_dev)) {
 				inode->i_ctime=CURRENT_TIME;
@@ -64,7 +64,7 @@ static int _bmap(struct m_inode * inode,int block,int create)
 		return inode->i_zone[block];
 	}
 	block -= 7;
-	if (block<512) {
+	if (block<512) { /* single indirect block */
 		if (create && !inode->i_zone[7])
 			if (inode->i_zone[7]=new_block(inode->i_dev)) {
 				inode->i_dirt=1;
@@ -84,6 +84,7 @@ static int _bmap(struct m_inode * inode,int block,int create)
 		return i;
 	}
 	block -= 512;
+	/* double indirect block */
 	if (create && !inode->i_zone[8])
 		if (inode->i_zone[8]=new_block(inode->i_dev)) {
 			inode->i_dirt=1;
@@ -151,6 +152,7 @@ repeat:
 		free_inode(inode);
 		return;
 	}
+	/* Does this a little bit redundant since we do it in iput() */
 	if (inode->i_dirt) {
 		write_inode(inode);	/* we can sleep - so do again */
 		wait_on_inode(inode);
@@ -171,6 +173,7 @@ struct m_inode * get_empty_inode(void)
 		inode = NULL;
 		inr = last_allocated_inode;
 		do {
+			/* inode cache here is represented to a static array */
 			if (!inode_table[inr].i_count) {
 				inode = inr + inode_table;
 				break;
@@ -191,6 +194,9 @@ struct m_inode * get_empty_inode(void)
 			write_inode(inode);
 			wait_on_inode(inode);
 		}
+		/* why examine i_count again?
+		 * unlock_inode should zero i_count then wake up
+		 */
 		if (!inode->i_count)
 			break;
 	}
@@ -215,6 +221,11 @@ struct m_inode * get_pipe_inode(void)
 	return inode;
 }
 
+/* TODO:
+ * 1. Does get_empty_inode() return NULL?
+ * 2. Should we seperate the situation inode in cache or not?
+ * 3. Use linked list to represent the inode cache
+ */
 struct m_inode * iget(int dev,int nr)
 {
 	struct m_inode * inode, * empty;
@@ -238,6 +249,7 @@ struct m_inode * iget(int dev,int nr)
 			iput(empty);
 		return inode;
 	}
+	/* not found in cache use empty inode */
 	if (!empty)
 		return (NULL);
 	inode=empty;

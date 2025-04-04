@@ -22,7 +22,7 @@ struct super_block * do_mount(int dev)
 	for(p = &super_block[0] ; p < &super_block[NR_SUPER] ; p++ )
 		if (!(p->s_dev))
 			break;
-	p->s_dev = -1;		/* mark it in use */
+	p->s_dev = -1; /* mark it in use but not valid */
 	if (p >= &super_block[NR_SUPER])
 		return NULL;
 	if (!(bh = bread(dev,1)))
@@ -40,12 +40,12 @@ struct super_block * do_mount(int dev)
 	block=2;
 	for (i=0 ; i < p->s_imap_blocks ; i++)
 		if (p->s_imap[i]=bread(dev,block))
-			block++;
+			block++; /* those bitmap won't be brelse() normally */
 		else
 			break;
 	for (i=0 ; i < p->s_zmap_blocks ; i++)
 		if (p->s_zmap[i]=bread(dev,block))
-			block++;
+			block++; /* those bitmap won't be brelse() normally */
 		else
 			break;
 	if (block != 2+p->s_imap_blocks+p->s_zmap_blocks) {
@@ -57,8 +57,8 @@ struct super_block * do_mount(int dev)
 		return NULL;
 	}
 	p->s_imap[0]->b_data[0] |= 1;
-	p->s_zmap[0]->b_data[0] |= 1;
-	p->s_dev = dev;
+	p->s_zmap[0]->b_data[0] |= 1; /* mark the boot block as used */
+	p->s_dev = dev; /* mark it valid */
 	p->s_isup = NULL;
 	p->s_imount = NULL;
 	p->s_time = 0;
@@ -83,15 +83,15 @@ void mount_root(void)
 		panic("Unable to mount root");
 	if (!(mi=iget(ROOT_DEV,1)))
 		panic("Unable to read root i-node");
-	mi->i_count += 3 ;	/* NOTE! it is logically used 4 times, not 1 */
+	mi->i_count += 3 ;	/* NOTE! it is logically used 4 times, not 1. TODO: why?*/
 	p->s_isup = p->s_imount = mi;
 	current->pwd = mi;
 	current->root = mi;
 	free=0;
 	i=p->s_nzones;
 	while (-- i >= 0)
-		if (!set_bit(i&8191,p->s_zmap[i>>13]->b_data))
-			free++;
+		if (!set_bit(i&8191,p->s_zmap[i>>13]->b_data)) /* NOTE: tricky naming */
+			free++; /* NOTE: set_bit() in this file actually tests the bit */
 	printk("%d/%d free blocks\n\r",free,p->s_nzones);
 	free=0;
 	i=p->s_ninodes+1;

@@ -1,4 +1,7 @@
 /* bitmap.c contains the code that handles the inode and block bitmaps */
+/* The technique used here is different from unix system V, mainly becuase
+ * the minixfs has the blocks of bitmap about both the inode and the block
+ */
 #include <string.h>
 
 #include <linux/sched.h>
@@ -36,6 +39,7 @@ __asm__("cld\n" \
 	:"=c" (__res):"c" (0),"S" (addr):"ax","dx","si"); \
 __res;})
 
+/* some as free() to free disk blocks for files */
 void free_block(int dev, int block)
 {
 	struct super_block * sb;
@@ -64,6 +68,7 @@ void free_block(int dev, int block)
 	sb->s_zmap[block/8192]->b_dirt = 1;
 }
 
+/* some as alloc() to alloc disk blocks for files */
 int new_block(int dev)
 {
 	struct buffer_head * bh;
@@ -96,6 +101,7 @@ int new_block(int dev)
 	return j;
 }
 
+/* some as ifree() to free inode */
 void free_inode(struct m_inode * inode)
 {
 	struct super_block * sb;
@@ -125,6 +131,7 @@ void free_inode(struct m_inode * inode)
 	memset(inode,0,sizeof(*inode));
 }
 
+/* some as ialloc() to alloc inode */
 struct m_inode * new_inode(int dev)
 {
 	struct m_inode * inode;
@@ -136,7 +143,7 @@ struct m_inode * new_inode(int dev)
 		return NULL;
 	if (!(sb = get_super(dev)))
 		panic("new_inode with unknown device");
-	j = 8192;
+	j = 8192; /* 8 bits multiplied by 1024 */
 	for (i=0 ; i<8 ; i++)
 		if (bh=sb->s_imap[i])
 			if ((j=find_first_zero(bh->b_data))<8192)

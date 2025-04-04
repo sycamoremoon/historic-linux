@@ -106,14 +106,15 @@ static struct buffer_head * find_entry(struct m_inode * dir,
 			bh = NULL;
 			if (!(block = bmap(dir,i/DIR_ENTRIES_PER_BLOCK)) ||
 			    !(bh = bread(dir->i_dev,block))) {
-				i += DIR_ENTRIES_PER_BLOCK;
-				continue;
+				i += DIR_ENTRIES_PER_BLOCK; /* execute here only if */
+				continue; /* we got NULL return in any of the if statement */
+				/* TODO: why? */
 			}
 			de = (struct dir_entry *) bh->b_data;
 		}
 		if (match(namelen,name,de)) {
 			*res_dir = de;
-			return bh;
+			return bh; /* return without brelse(bh)? */
 		}
 		de++;
 		i++;
@@ -208,6 +209,9 @@ static struct m_inode * get_dir(const char * pathname)
 		panic("No root inode");
 	if (!current->pwd || !current->pwd->i_count)
 		panic("No cwd inode");
+	/* NOTE: this pathname address is user space, so
+	 * we have to use get_fs_byte() to read it.
+	 */
 	if ((c=get_fs_byte(pathname))=='/') {
 		inode = current->root;
 		pathname++;
@@ -224,16 +228,16 @@ static struct m_inode * get_dir(const char * pathname)
 		}
 		for(namelen=0;(c=get_fs_byte(pathname++))&&(c!='/');namelen++)
 			/* nothing */ ;
-		if (!c)
-			return inode;
+		if (!c) /* meet the end but this is NOT a directory */
+			return inode; /* so return the inode of last dir*/
 		if (!(bh = find_entry(inode,thisname,namelen,&de))) {
 			iput(inode);
 			return NULL;
 		}
 		inr = de->inode;
 		idev = inode->i_dev;
-		brelse(bh);
-		iput(inode);
+		brelse(bh); /* save inr and idev and release */
+		iput(inode); /* because iget() might block */
 		if (!(inode = iget(idev,inr)))
 			return NULL;
 	}
