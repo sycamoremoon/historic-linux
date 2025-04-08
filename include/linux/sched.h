@@ -1,7 +1,7 @@
 #ifndef _SCHED_H
 #define _SCHED_H
 
-#define NR_TASKS 64
+#define NR_TASKS 64 /* 64 * 0x4000000 = 4G */
 #define HZ 100
 
 #define FIRST_TASK task[0]

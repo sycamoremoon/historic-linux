@@ -17,6 +17,7 @@
  *	10(%esp) - %fs
  *	14(%esp) - %es
  *	18(%esp) - %ds
+ * --- below here saved by hardware ---
  *	1C(%esp) - %eip
  *	20(%esp) - %cs
  *	24(%esp) - %eflags
@@ -67,7 +68,7 @@ _system_call:
 	pushl %edx
 	pushl %ecx		# push %ebx,%ecx,%edx as parameters
 	pushl %ebx		# to the system call
-	movl $0x10,%edx		# set up ds,es to kernel space
+	movl $0x10,%edx		# set up ds,es to kernel space (0x10 >> 3 = 0x2)
 	mov %dx,%ds
 	mov %dx,%es
 	movl $0x17,%edx		# fs points to local data space

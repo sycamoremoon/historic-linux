@@ -35,15 +35,16 @@ int copy_mem(int nr,struct task_struct * p)
 	unsigned long old_data_base,new_data_base,data_limit;
 	unsigned long old_code_base,new_code_base,code_limit;
 
-	code_limit=get_limit(0x0f);
-	data_limit=get_limit(0x17);
+	code_limit=get_limit(0x0f); /* (0x0f=b 1 11 1), TI=1(LDT), RPL=3 */
+	data_limit=get_limit(0x17); /* (0x17=b10 11 1), TI=2(LDT), RPL=3 */
 	old_code_base = get_base(current->ldt[1]);
 	old_data_base = get_base(current->ldt[2]);
 	if (old_data_base != old_code_base)
 		panic("We don't support separate I&D");
 	if (data_limit < code_limit)
 		panic("Bad data_limit");
-	new_data_base = new_code_base = nr * 0x4000000;
+	new_code_base = nr * 0x4000000;
+	new_data_base = new_code_base; /* 64MB liner address per process */
 	set_base(p->ldt[1],new_code_base);
 	set_base(p->ldt[2],new_data_base);
 	if (copy_page_tables(old_data_base,new_data_base,data_limit)) {

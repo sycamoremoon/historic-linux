@@ -68,7 +68,7 @@ void free_page(unsigned long addr)
 	addr -= LOW_MEM;
 	addr >>= 12;
 	if (mem_map[addr]--) return;
-	mem_map[addr]=0;
+	mem_map[addr]=0; /* mem_map should not be zero before decrement */
 	panic("trying to free free page");
 }
 
